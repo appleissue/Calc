@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Multi-Role Form to Google Sheet</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      background-color: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 500px;
+    }
+    h2, h3 {
+      text-align: center;
+      color: #333;
+    }
+    .form-group {
+      margin-bottom: 18px;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+      color: #555;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      box-sizing: border-box;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+    button {
+      padding: 12px;
+      width: 100%;
+      background-color: #28a745;
+      color: #fff;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+    #responseMessage {
+      margin-top: 20px;
+      text-align: center;
+      font-weight: bold;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    .success {
+      color: #155724;
+      background-color: #d4edda;
+      border: 1px solid #c3e6cb;
+    }
+    .error {
+      color: #721c24;
+      background-color: #f8d7da;
+      border: 1px solid #f5c6cb;
+    }
+    hr {
+      border: 0;
+      border-top: 1px solid #ccc;
+      margin: 15px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Multi-Role Form</h2>
+    <form id="contactForm">
+      <div class="form-group">
+        <label for="name">Your Name:</label>
+        <input type="text" id="name" name="name" required placeholder="Enter your name" />
+      </div>
+      <div class="form-group">
+        <label for="email">Your Email:</label>
+        <input type="email" id="email" name="email" required placeholder="you@example.com" />
+      </div>
+      <div class="form-group">
+        <label for="message">Message:</label>
+        <textarea id="message" name="message" required placeholder="Your message..."></textarea>
+      </div>
+
+      <h3>Roles</h3>
+      <div id="rolesContainer"></div>
+      <button type="button" onclick="addRole()">Add Role</button>
+      <button type="submit">Submit</button>
+    </form>
+    <div id="responseMessage"></div>
+  </div>
+
+  <script>
+    let roleCounter = 0;
+
+    function addRole() {
+      const container = document.getElementById('rolesContainer');
+      const div = document.createElement('div');
+      div.classList.add('form-group');
+      div.innerHTML = `
+        <label>Role ${roleCounter + 1}</label>
+        <input type="text" name="role[${roleCounter}][title]" placeholder="Role Title" required />
+        <input type="text" name="role[${roleCounter}][experience]" placeholder="Experience Level" required />
+        <input type="number" name="role[${roleCounter}][compensation]" placeholder="Compensation" required />
+        <input type="number" name="role[${roleCounter}][quantity]" placeholder="Quantity" required />
+        <hr/>
+      `;
+      container.appendChild(div);
+      roleCounter++;
+    }
+
+    document.getElementById('contactForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const responseMessage = document.getElementById('responseMessage');
+      responseMessage.textContent = 'Sending...';
+      responseMessage.className = '';
+
+      const formData = new FormData(this);
+      const payload = {
+        name: formData.get('name'),
+        email: formData.get('email'),
+        message: formData.get('message'),
+        roles: []
+      };
+
+      for (let i = 0; i < roleCounter; i++) {
+        const role = {
+          title: formData.get(`role[${i}][title]`),
+          experience: formData.get(`role[${i}][experience]`),
+          compensation: formData.get(`role[${i}][compensation]`),
+          quantity: formData.get(`role[${i}][quantity]`)
+        };
+        if (role.title) payload.roles.push(role);
+      }
+
+      try {
+        const res = await fetch('https://script.google.com/macros/s/AKfycbxy-ixp7NKN4hL-FO7PnBKZZdrd8PpsCap8FlvmA1PNym0FeHegzLd5Bgjrkt1ldr1e/exec', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const text = await res.text();
+        if (res.ok) {
+          responseMessage.textContent = text;
+          responseMessage.className = 'success';
+          this.reset();
+          document.getElementById('rolesContainer').innerHTML = '';
+          roleCounter = 0;
+        } else {
+          responseMessage.textContent = 'Error: ' + text;
+          responseMessage.className = 'error';
+        }
+      } catch (err) {
+        console.error(err);
+        responseMessage.textContent = 'Network error or invalid server response.';
+        responseMessage.className = 'error';
+      }
+    });
+  </script>
+</body>
+</html>
